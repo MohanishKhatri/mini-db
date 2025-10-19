@@ -56,11 +56,37 @@ int Server::acceptClient(){
     return client_fd;
 }
 
+// void Server::sendResponse(int client_fd) {
+//     std::string greeting = "Hi Hello!\n";
+//     send(client_fd, greeting.c_str(), greeting.size(), 0);
+//     std::cout << "Sent greeting to client.\n";
+// }
 void Server::sendResponse(int client_fd) {
-    std::string greeting = "Hi Hello!\n";
-    send(client_fd, greeting.c_str(), greeting.size(), 0);
-    std::cout << "Sent greeting to client.\n";
+    char buffer[4096];
+    std::string input;
+    ssize_t bytes;
+    // Read until newline or buffer becomes full
+    while ((bytes = recv(client_fd, buffer, sizeof(buffer) - 1, 0)) > 0) {
+        buffer[bytes] = '\0';
+        input += buffer;
+        // Stops reading if newline is found 
+        if (input.find('\n') != std::string::npos) {
+            break;
+        }
+    }
+    if (bytes < 0) {
+        std::cerr<<"Recv Error. errno: "<<errno<<"\n";
+        std::cerr<<"Error message : "<<std::strerror(errno)<<"\n";
+        return;
+    }
+
+    // Use the server’s MiniDB instance
+    std::string response = database.executeCommand(input);
+
+    send(client_fd, response.c_str(), response.size(), 0);
+    std::cout<<"Sent response to client.\n";
 }
+
 
 void Server::closeConnection(int client_fd) {
     close(client_fd);

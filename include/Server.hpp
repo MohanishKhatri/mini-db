@@ -2,6 +2,7 @@
 
 #include <string>
 #include <SocketUtils.hpp>
+#include <miniDB.hpp>
 
 class Server
 {
@@ -15,6 +16,7 @@ public:
 private:
     int serverSocketfd;
     std::string port;
+    MiniDB database;
 
     int acceptClient();
     void sendResponse(int client_fd);
