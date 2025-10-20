@@ -14,4 +14,5 @@ private:
     std::string processSetCommand(const std::vector<std::string>& cleaninput);
     std::string processGetCommand(const std::vector<std::string>& cleaninput);
     std::string processDeleteCommand(const std::vector<std::string>& cleaninput);
+    std::string processExistsCommand(const std::vector<std::string>& cleaninput);
 };

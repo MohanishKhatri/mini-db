@@ -8,7 +8,9 @@ int main() {
     Server.initializeSocket();
 
     // Start accepting clients
-    Server.acceptAndRespond();
+    Server.runWithEpoll();
+    // Server.acceptAndRespond();
+
 
     return 0;
 }

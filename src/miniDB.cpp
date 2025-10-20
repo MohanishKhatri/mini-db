@@ -18,6 +18,7 @@ std::string MiniDB::executeCommand(const std::string& input) {
     if (command == "SET")  return processSetCommand(cleaninput);
     if (command == "GET")  return processGetCommand(cleaninput);
     if (command == "DEL")  return processDeleteCommand(cleaninput);
+    if (command=="EXISTS") return processExistsCommand(cleaninput);
 
     return "-ERR unknown command\r\n";
 }
@@ -46,6 +47,13 @@ std::string MiniDB::processDeleteCommand(const std::vector<std::string>& cleanin
 
     int removed = store.erase(cleaninput[1]);
     return ":" + std::to_string(removed) + "\r\n";
+}
+
+std::string MiniDB::processExistsCommand(const std::vector<std::string>& cleaninput){
+    if(cleaninput.size()<2) return "-ERR wrong number of arguments for 'EXISTS'\r\n";
+
+    int exists = store.count(cleaninput[1]);
+    return ":" + std::to_string(exists) + "\r\n";
 }
 
 
