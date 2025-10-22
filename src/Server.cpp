@@ -5,7 +5,9 @@
 #include <cstring>
 #include <sys/epoll.h>
 #include <unordered_map>
+#include <chrono>
 #include "miniDBParser.hpp"
+#include "TTLManager.hpp"
 
 
 Server::Server(const std::string& port){
@@ -160,10 +162,14 @@ void Server::runWithEpoll(){
     struct epoll_event events[10];
     std::unordered_map<int, std::string> clientBuffers;
     
+    auto last_purge = std::chrono::steady_clock::now();
+    const int purgeIntervalSeconds = 1;
+    const int epollTimeoutMs = 500; // wake up every second even if no events
+    
     std::cout<<"Waiting for clients...\n";
     
     while(true){
-        int ready = epoll_wait(epoll_fd, events, 10, -1);
+        int ready = epoll_wait(epoll_fd, events, 10, epollTimeoutMs);
         
         if(ready == -1){
             std::cerr<<"Epoll Wait Error. errno: "<<errno<<"\n";
@@ -171,6 +177,7 @@ void Server::runWithEpoll(){
             continue;
         }
         
+        // Handle ready events (could be 0 if timeout)
         for(int i = 0; i < ready; i++){
             int fd = events[i].data.fd;
             
@@ -201,6 +208,15 @@ void Server::runWithEpoll(){
                     clientBuffers.erase(fd);
                 }
             }
+        }
+        
+        // Periodic cleanup
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - last_purge).count();
+        
+        if (elapsed >= purgeIntervalSeconds) {
+            database.purgeExpiredKeys();
+            last_purge = now;
         }
     }
     

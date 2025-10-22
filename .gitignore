@@ -1,4 +1,4 @@
 server
-*.py
 .vscode/
 *.md
+test/
