@@ -31,7 +31,7 @@ std::string MiniDB::processPing() {
 
 std::string MiniDB::processSetCommand(const std::vector<std::string>& cleaninput) {
     if (cleaninput.size() < 3) return "-ERR wrong number of arguments for 'SET'\r\n";
-    store[cleaninput[1]] = cleaninput[2];
+    store.put(cleaninput[1], cleaninput[2]);
     // No need to access cleaninput[3] when size is 3
     if(cleaninput.size()==5){
         std::string fourthArg = cleaninput[3];
@@ -81,28 +81,26 @@ std::string MiniDB::processGetCommand(const std::vector<std::string>& cleaninput
         ttlmanager.removeTTL(key);
         return "$-1\r\n";
     }
-    
-    auto it = store.find(key);
-    if (it == store.end()) return "$-1\r\n"; 
-
-    return "$" + std::to_string(it->second.size()) + "\r\n" + it->second + "\r\n";
+    std::string value;
+    if (!store.get(key, value)) return "$-1\r\n";
+    return "$" + std::to_string(value.size()) + "\r\n" + value + "\r\n";
 }
 
 std::string MiniDB::processDeleteCommand(const std::vector<std::string>& cleaninput) {
     if (cleaninput.size() < 2) return "-ERR wrong number of arguments for 'DEL'\r\n";
 
     const std::string& key = cleaninput[1];
-    int removed = store.erase(key);
-    if(removed > 0) {
+    bool removed = store.erase(key);
+    if(removed) {
         ttlmanager.removeTTL(key);
     }
-    return ":" + std::to_string(removed) + "\r\n";
+    return ":" + std::to_string(removed ? 1 : 0) + "\r\n";
 }
 
 std::string MiniDB::processExistsCommand(const std::vector<std::string>& cleaninput){
     if(cleaninput.size()<2) return "-ERR wrong number of arguments for 'EXISTS'\r\n";
 
-    int exists = store.count(cleaninput[1]);
+    int exists = store.contains(cleaninput[1]) ? 1 : 0;
     return ":" + std::to_string(exists) + "\r\n";
 }
 
@@ -130,7 +128,7 @@ std::string MiniDB::processExpireCommand(const std::vector<std::string>& cleanin
     }
 
     // Only set TTL if key exists
-    if (store.find(key) == store.end()) {
+    if (!store.contains(key)) {
         return ":0\r\n";
     }
 
@@ -148,7 +146,7 @@ std::string MiniDB::processTTLCommand(const std::vector<std::string>& cleaninput
     const std::string& key = cleaninput[1];
     
     // Check if key exists
-    if(store.find(key) == store.end()) {
+    if(!store.contains(key)) {
         return ":-2\r\n"; // Key doesn't exist
     }
     

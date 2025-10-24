@@ -1,8 +1,8 @@
 #pragma once
 #include <string>
-#include <unordered_map>
 #include <vector>
 #include "TTLManager.hpp"
+#include "SimpleHashMap.hpp"
 
 class MiniDB {
 public:
@@ -11,7 +11,7 @@ public:
     void purgeExpiredKeys();
     
     private:
-    std::unordered_map<std::string, std::string> store;
+    SimpleHashMap store;
     TTLManager ttlmanager;
 
     std::string processPing();
