@@ -36,16 +36,57 @@ A small, event-driven key–value server in C++ that uses the Redis RESP protoco
 - Non-blocking sockets with an epoll event loop.
 - Per-connection buffers; parse RESP arrays when complete and dispatch to command handlers.
 - TTL: `SET ... EX s`, `EXPIRE`, `TTL`; lazy expiration on access and periodic purge via epoll timeout (`MiniDB::purgeExpiredKeys()`).
+
+## Architecture workflow
+
+```mermaid
+graph TD
+  In([Incoming TCP Request]) --> Loop[epoll Event Loop]
+
+  subgraph "mini-db Architecture"
+    Loop --> FrameCheck[Frame Check: Is complete?]
+        
+    FrameCheck -.->|No| Err[-ERR Malformed]
+    FrameCheck -->|Yes| Dispatch{Parse & Dispatch}
+
+    Dispatch --> DB[(SimpleHashMap)]
+    Dispatch --> TTL[TTL Manager]
+
+    %% Background tasks
+    Loop -.->|Timer| Purge[Periodic Purge]
+    Purge -.->|Remove| DB
+    TTL -.->|Lazy Expire| DB
+  end
+
+  %% All paths lead back to the client
+  DB --> Reply[Format RESP Reply]
+  TTL --> Reply
+  Err --> Reply
+
+  Reply --> Out([Outgoing TCP Reply])
+```
  
 
 ## Code layout
 
-- `src/main.cpp` — server entry point
-- `include/Server.hpp`, `src/Server.cpp` — socket setup, epoll loop, client buffers
-- `include/miniDB.hpp`, `src/miniDB.cpp` — command dispatchers and handlers
-- `include/miniDBParser.hpp`, `src/miniDBParser.cpp` — RESP array-of-bulk parser
-- `include/TTLManager.hpp`, `src/TTLManager.cpp` — TTL tracking (min-heap + map)
-- `include/SimpleHashMap.hpp`, `src/SimpleHashMap.cpp` — simple hashmap (standalone)
+```text
+mini-db/
+├── include/
+│   ├── Server.hpp           # server interface
+│   ├── miniDB.hpp           # command execution API
+│   ├── miniDBParser.hpp     # RESP parser interface
+│   ├── TTLManager.hpp       # TTL management interface
+│   ├── SimpleHashMap.hpp    # hashmap interface
+│   └── SocketUtils.hpp      # socket helper declarations
+└── src/
+    ├── main.cpp             # server entry point
+    ├── Server.cpp           # epoll loop, connection handling, client buffers
+    ├── miniDB.cpp           # command dispatch + command handlers
+    ├── miniDBParser.cpp     # parses RESP array-of-bulk input
+    ├── TTLManager.cpp       # expiry map + heap cleanup logic
+    ├── SimpleHashMap.cpp    # hashmap implementation
+    └── SocketUtils.cpp      # socket setup/bind/listen helpers
+```
 
 
 ## Getting started
@@ -54,12 +95,33 @@ Prerequisites:
 - Linux
 - GCC or Clang
 - make
+- Docker (optional, for containerized run)
 
-Build the server:
+### Method 1: Run locally (make)
 
 ```bash
 make            # builds server
 ./server        # runs server (binds default port 8080)
+```
+
+### Method 2: Run with Docker
+
+Build the image:
+
+```bash
+docker build -t mini-db .
+```
+
+Run the container (publish port 8080):
+
+```bash
+docker run --name mini-db -p 8080:8080 mini-db
+```
+
+Stop and remove container:
+
+```bash
+docker stop mini-db && docker rm mini-db
 ```
 
 Troubleshooting:
